@@ -27,7 +27,7 @@ import java.util.Map;
  * @date 2015年10月9日
  * @time 下午1:46:07
  */
-public class LisenceManager {
+public class LicenseManager {
 
 	// 策略的分隔符， 分割  内容加密解密策略&签名加密解密策略
 	private static final String STRATEGY_SPLIT = "&";

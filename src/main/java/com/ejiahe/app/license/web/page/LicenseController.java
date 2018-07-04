@@ -1,8 +1,9 @@
 package com.ejiahe.app.license.web.page;
 
+import com.ejiahe.app.license.LicenseService;
 import com.ejiahe.app.license.bean.CipherLicense;
 import com.ejiahe.app.license.bean.License;
-import com.ejiahe.app.license.manager.LisenceManager;
+import com.ejiahe.app.license.manager.LicenseManager;
 import com.ejiahe.app.license.manager.sign.source.SignMD5;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +24,7 @@ public class LicenseController {
     @RequestMapping(value={"/create"}, method={RequestMethod.POST})
     public CipherLicense create(@RequestBody License license, HttpSession session,HttpServletRequest request) {
 
-        LisenceManager lisenceManager = new LisenceManager();
+        LicenseService licenseServ = new LicenseService();
 
         // 请求签名
         String reqSign = license.getReqSign();
@@ -32,7 +33,7 @@ public class LicenseController {
         String ip = request.getRemoteAddr();
 
         if(checkSign(reqSign,license) && localIp.equals(ip)){
-            return lisenceManager.createLisence(license);
+            return licenseServ.createLisence(license);
 
         }
 
