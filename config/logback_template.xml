@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<configuration debug="false" scan="true" scanPeriod="60 seconds"> 
+	<!-- 定义存放路径 -->
+  	<property name="log.base" value="${APP_HOME}" />
+
+  	<!-- 打印到控制台 -->
+  	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender"> 
+	    <!-- encoders are  by default assigned the type
+	         ch.qos.logback.classic.encoder.PatternLayoutEncoder -->
+	         
+	    <!-- 常用的Pattern变量示例 -->
+	    <encoder>
+	    	<pattern>%d{yyyy.MM.dd HH:mm:ss} [%level] [%class{1}:%line] - %m%n</pattern>
+	    	<!-- 
+		      <pattern>
+		      	%d{yyyy.MM.dd HH:mm:ss} [%level] - %msg%n
+		      	Logger: %logger
+		      	Class: %class
+		      	File: %file
+		      	Caller: %caller
+		      	Line: %line
+		      	Message: %m
+		      	Method: %M
+		      	Relative: %relative
+		      	Thread: %thread
+		      	Exception: %ex
+		      	xException: %xEx
+		      	nopException: %nopex
+		      	rException: %rEx
+		      	Marker: %marker
+		      	%n
+		      </pattern>
+	      	 -->
+	   	</encoder>
+	</appender>
+
+	<!-- 按日期和大小区分的滚动日志 -->
+	<appender name="DEBUG-OUT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>${log.base}/logs/debug.log</file>
+
+		<encoder>
+			<pattern>%d{yyyy.MM.dd HH:mm:ss} [%class{1}:%line] - %m%n%ex</pattern>
+		</encoder>
+
+		<filter class="ch.qos.logback.classic.filter.LevelFilter">
+			<level>DEBUG</level>
+			<onMatch>ACCEPT</onMatch>
+			<onMismatch>DENY</onMismatch>
+		</filter>
+
+		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+			<fileNamePattern>${log.base}/logs/debug-%d{yyyy.MM.dd}.%i.log.gz</fileNamePattern>
+			<maxFileSize>20MB</maxFileSize>
+			<maxHistory>15</maxHistory>
+			<totalSizeCap>1GB</totalSizeCap>
+		</rollingPolicy>
+	</appender>
+
+	<!-- 按日期和大小区分的滚动日志 -->
+	<appender name="INFO-OUT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>${log.base}/logs/info.log</file>
+		<encoder>
+			<pattern>%d{yyyy.MM.dd HH:mm:ss} [%class{1}:%line] - %m%n%ex</pattern>
+		</encoder>
+
+		<filter class="ch.qos.logback.classic.filter.LevelFilter">
+			<level>INFO</level>
+			<onMatch>ACCEPT</onMatch>
+			<onMismatch>DENY</onMismatch>
+		</filter>
+
+		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+			<fileNamePattern>${log.base}/logs/info-%d{yyyy.MM.dd}.%i.log.gz</fileNamePattern>
+			<maxFileSize>20MB</maxFileSize>
+			<maxHistory>30</maxHistory>
+			<totalSizeCap>5GB</totalSizeCap>
+		</rollingPolicy>
+
+	</appender>
+
+	<!-- 按日期和大小区分的滚动日志 -->
+	<appender name="WARN-OUT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>${log.base}/logs/warn.log</file>
+
+		<encoder>
+			<pattern>%d{yyyy.MM.dd HH:mm:ss} [%class{1}:%line] - %m%n%ex</pattern>
+		</encoder>
+
+		<filter class="ch.qos.logback.classic.filter.LevelFilter">
+			<level>WARN</level>
+			<onMatch>ACCEPT</onMatch>
+			<onMismatch>DENY</onMismatch>
+		</filter>
+
+		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+			<fileNamePattern>${log.base}/logs/warn-%d{yyyy.MM.dd}.%i.log.gz</fileNamePattern>
+			<maxFileSize>20MB</maxFileSize>
+			<maxHistory>30</maxHistory>
+			<totalSizeCap>1GB</totalSizeCap>
+			<cleanHistoryOnStart>true</cleanHistoryOnStart>
+		</rollingPolicy>
+	</appender>
+
+	<!-- 按日期和大小区分的滚动日志 -->
+	<appender name="ERROR-OUT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>${log.base}/logs/error.log</file>
+		<encoder>
+			<pattern>%d{yyyy.MM.dd HH:mm:ss} [%class{1}:%line] - %m%n%ex</pattern>
+		</encoder>
+
+		<filter class="ch.qos.logback.classic.filter.LevelFilter">
+			<level>ERROR</level>
+			<onMatch>ACCEPT</onMatch>
+			<onMismatch>DENY</onMismatch>
+		</filter>
+
+		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+			<fileNamePattern>${log.base}/logs/error-%d{yyyy.MM.dd}.%i.log.gz</fileNamePattern>
+			<maxFileSize>20MB</maxFileSize>
+			<maxHistory>30</maxHistory>
+			<totalSizeCap>1GB</totalSizeCap>
+			<cleanHistoryOnStart>true</cleanHistoryOnStart>
+		</rollingPolicy>
+	</appender>
+
+	<!-- 按日期和大小区分的滚动日志 -->
+	<appender name="SUM-OUT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>${log.base}/logs/sum.log</file>
+		<encoder>
+			<pattern>%d{yyyy.MM.dd HH:mm:ss} *****Test [%class{1}:%line] - %m%n%ex</pattern>
+		</encoder>
+
+		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+			<fileNamePattern>${log.base}/logs/sum-%d{yyyy.MM.dd}.%i.log.gz</fileNamePattern>
+			<maxFileSize>20MB</maxFileSize>
+			<maxHistory>0</maxHistory>
+			<totalSizeCap>300MB</totalSizeCap>
+			<cleanHistoryOnStart>true</cleanHistoryOnStart>
+		</rollingPolicy>
+	</appender>
+	
+  	<root level="info">
+	    <appender-ref ref="DEBUG-OUT" />
+	    <appender-ref ref="INFO-OUT" />
+	    <appender-ref ref="WARN-OUT" />
+	    <appender-ref ref="ERROR-OUT" />
+	    <appender-ref ref="SUM-OUT" />
+  	</root>
+</configuration>

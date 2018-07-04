@@ -3,7 +3,7 @@ package com.ejiahe.app.license;
 import com.ejiahe.app.license.conf.LicenseConfig;
 import com.ejiahe.app.license.manager.cipher.source.CipherAES;
 import com.ejiahe.app.license.uitls.EmailService;
-import com.ejiahe.jeservice.util.JEConstants;
+import com.ejiahe.app.license.uitls.JEConstants;
 import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -1,0 +1,260 @@
+#!/bin/sh
+#
+# EIM Stops and starts the GZB License service.
+#
+# chkconfig: 2345 99 1
+# description: GZB License Server
+# processname: gzblicense
+# config: /etc/sysconfig/gzb/gzblicense
+# pidfile: /var/run/gzblicense.pid
+#
+### BEGIN INIT INFO
+# Provides: Jiami
+# Required-Start: $local_fs $remote_fs $network $named
+# Required-Stop: $local_fs $remote_fs $network
+# Short-Description: start and stop GZB License Server
+### END INIT INFO
+
+APP_NAME="cipherlicense"
+APP_HOME="/home/$APP_NAME"
+
+# Memory
+APP_MAX_MEMORY="4g"
+APP_MIN_MEMORY="1g"
+
+# JVM
+APP_NEW_RATIO="1"
+
+# Get config.
+[ -f "/etc/profile" ] && . /etc/profile
+[ -f "/etc/sysconfig/gzb/gzb_common" ] && . /etc/sysconfig/gzb/gzb_common
+[ -f "/etc/sysconfig/gzb/$APP_NAME" ] && . /etc/sysconfig/gzb/$APP_NAME
+
+APP_LOGDIR=${APP_LOGDIR:-$APP_HOME/logs} #if APP_LOGDIR is undefined or APP_LOGDIR value is null, when APP_LOGDIR's value is $APP_HOME/logs
+JAVA_HOME=${JAVA_HOME:-/home/ippbx/jdk} # same as above
+
+[ -d $APP_HOME ] || { echo app home $APP_HOME not exist; exit 2; }
+[ -d $JAVA_HOME ] || { echo java home $JAVA_HOME not exist; exit 2; }
+
+if [ -f "/etc/init.d/functions" ]; then
+    FUNCTIONS_FOUND=true
+    . /etc/init.d/functions
+fi
+
+# Debug Arguments
+if [[ "$DEBUG" -eq 1 ]]; then
+    DEBUG_PORT=${DEBUG_PORT:-9990}
+    DEBUG_OPTS="-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=$DEBUG_PORT"
+fi
+
+if [[ "$JMX" -eq 1 ]]; then
+    LOCALHOST=$(ip addr | awk --posix '/inet (([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])/{print $2}' | awk -F'/' '$1 !~ /127\.0\.0\.1/{print $1}'|head -1) # get one localhost ip
+    JMX_HOST=${JMX_HOST:-$LOCALHOST}
+    JMX_PORT=${JMX_PORT:-19990}
+    RMI_OPTS="-Dcom.sun.management.jmxremote -Djava.rmi.server.hostname=$JMX_HOST -Dcom.sun.management.jmxremote.port=$JMX_PORT -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false"
+fi
+
+GC_DEBUG_OPTS="-verbose:gc -Xloggc:${APP_LOGDIR}/gc.log -XX:+PrintGCDateStamps -XX:+PrintGCDetails -XX:+PrintPromotionFailure  -XX:ErrorFile=${APP_LOGDIR}/java_error_%p.log -XX:+HeapDumpOnOutOfMemoryError"
+
+# Check that we are root ... so non-root users stop here.
+if [ "`id -u`" != 0 ]; then
+    echo $0 must be run as root
+    exit 1
+fi
+
+# If user is not set in sysconfig, set to root
+[ -z "$APP_USER" ] && APP_USER="root"
+
+# If pid file path is not set in sysconfig, set to /var/run/$APP_NAME.pid.
+[ -z "$APP_PIDFILE" ] && APP_PIDFILE="/var/run/$APP_NAME.pid"
+
+# If lock file is not set in sysconfig, set to /var/lock/subsys/$APP_NAME.
+APP_LOCKFILE=/var/lock/subsys/$APP_NAME
+
+# -----------------------------------------------------------------
+
+# If app home variable has not been specified, try to determine it.
+if [ -z "$APP_HOME" -o ! -d "$APP_HOME" ]; then
+    if [ -d "/usr/share/$APP_NAME" ]; then
+        APP_HOME="/usr/share/$APP_NAME"
+    elif [ -d "/usr/local/$APP_NAME" ]; then
+        APP_HOME="/usr/local/$APP_NAME"
+    elif [ -d "/opt/$APP_NAME" ]; then
+        APP_HOME="/opt/$APP_NAME"
+    else
+        echo "Could not find $APP_NAME installation under /opt, /usr/share, or /usr/local."
+        echo "Please specify the $APP_NAME installation location as variable $APP_HOME"
+        echo "in /etc/sysconfig/gzb/$APP_NAME."
+        exit 1
+    fi
+fi
+
+# Attempt to locate java installation.
+if [ -z "$JAVA_HOME" ]; then
+    if [ -d "${APP_HOME}/jre" ]; then
+        JAVA_HOME="${APP_HOME}/jre"
+    elif [ -d "/etc/alternatives/jre" ]; then
+        JAVA_HOME="/etc/alternatives/jre"
+    else
+        jdks=`ls -r1d /usr/java/j*`
+        for jdk in $jdks; do
+            if [ -f "${jdk}/bin/java" ]; then
+                JAVA_HOME="$jdk"
+                break
+            fi
+        done
+    fi
+fi
+JAVACMD="${JAVA_HOME}/bin/java"
+
+if [ ! -d "$JAVA_HOME" -o ! -x "$JAVACMD" ]; then
+    echo "Error: JAVA_HOME is not defined correctly."
+    echo "       Can not sure execute $JAVACMD."
+    exit 1
+fi
+
+# Prepare location of openfire libraries
+LIB="${APP_HOME}/lib"
+LOCALCLASSPATH="${LIB}"
+
+# Prepare app command line
+APP_OPTS="${APP_OPTS} -Xmx${APP_MAX_MEMORY} -Xms${APP_MIN_MEMORY} -XX:NewRatio=${APP_NEW_RATIO} -Xss512k -XX:PermSize=128m -XX:MaxPermSize=256m \
+-XX:+UseConcMarkSweepGC -XX:+UseParNewGC -XX:+CMSParallelRemarkEnabled -XX:+CMSScavengeBeforeRemark -XX:CMSFullGCsBeforeCompaction=1 \
+-XX:SurvivorRatio=4 -XX:CMSInitiatingOccupancyFraction=78 \
+-XX:+CMSClassUnloadingEnabled -XX:+UseFastAccessorMethods \
+${GC_DEBUG_OPTS} ${RMI_OPTS} ${DEBUG_OPTS}"
+
+JVM_SYSTEM_OPTS="-DAPP_NAME=${APP_NAME} -DAPP_HOME=${APP_HOME} \
+-Dspring.config.location=classpath:,classpath:/config,file:,file:config/:,file:${APP_HOME}/config/application.properties"
+
+# Prepare local java class path
+APP_LIB="${APP_HOME}/lib"
+LOCALCLASSPATH="${APP_CONFIG}:${APP_LIB}"
+
+# Prepare local java class path
+if [ -z "$LOCALCLASSPATH" ]; then
+    LOCALCLASSPATH="${APP_LIB}/*"
+else
+    LOCALCLASSPATH="${APP_LIB}/*:${LOCALCLASSPATH}"
+fi
+
+# Export any necessary variables
+export JAVA_HOME JAVACMD
+
+# Lastly, prepare the full command that we are going to run.
+APP_RUN_CMD="${JAVACMD} -server ${APP_OPTS} -classpath \"${LOCALCLASSPATH}\" $JVM_SYSTEM_OPTS com.ejiahe.Application \"$@\""
+
+#####
+# End setup work
+#####
+
+
+
+start() {
+    OLD_PWD=`pwd`
+    cd $APP_LOGDIR
+
+    PID=$(findPID)
+    if [ -n "$PID" ]; then                                                
+        echo "$APP_NAME is already running."                                 
+        RETVAL=1                                                           
+        return                                                             
+    fi                                                                     
+
+    # Start daemons.                                                       
+    echo -n "Starting $APP_NAME: "                                          
+
+    bakeupLog
+    
+    su -s /bin/sh -c "nohup $APP_RUN_CMD > $APP_LOGDIR/nohup.out 2>&1 &" $APP_USER
+    RETVAL=$?
+    
+    [ $RETVAL -eq 0 ] && success
+    echo
+
+    [ $RETVAL -eq 0 -a -d ${APP_LOCKFILE%/*} ] && touch $APP_LOCKFILE
+
+    sleep 3 # allows prompt to return
+
+    PID=$(findPID)
+    echo $PID > $APP_PIDFILE
+    
+    echo $PID
+
+    cd $OLD_PWD
+}
+
+stop() {
+    echo -n $"Stopping $APP_NAME: "
+    killproc -p $APP_PIDFILE -d 10
+    RETVAL=$?
+    echo
+    [ $RETVAL = 0 ] && rm -f ${APP_PIDFILE} ${APP_LOCKFILE}
+}
+
+restart() {
+    stop
+    sleep 1 # give it a few moments to shut down
+    start
+}
+
+load() {
+    start
+}
+
+reload() {
+    stop
+    sleep 5
+    start
+}
+
+condrestart() {
+    [ -e "$APP_LOCKFILE" ] && restart
+    return 0
+}
+
+findPID() {
+    echo `ps ax | grep APP_NAME=${APP_NAME} | grep -v grep | awk '{print $1}'`
+}
+
+bakeupLog() {
+
+    if [ -f "nohup.out" ]; then
+      mv -f nohup.out nohup.out.bak
+    fi     
+
+    if [ -f "gc.log" ]; then
+      mv -f gc.log gc.log.bak
+    fi  
+}
+
+# Handle how we were called.
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart)
+        restart
+        ;;
+    load)
+        load
+        ;;
+    reload)
+        reload
+        ;;
+    condrestart)
+        condrestart
+        ;;
+    status) 
+        status -p ${APP_PIDFILE} ${APP_NAME}
+        RETVAL=$?
+        ;;
+    *)
+        echo "Usage $0 {start|stop|restart|status|condrestart|load|reload}"
+        RETVAL=1
+esac
+
+exit $RETVAL
